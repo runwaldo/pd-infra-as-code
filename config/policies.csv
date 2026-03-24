@@ -1,0 +1,3 @@
+name,primary_contact,secondary_contact
+tier-1-oncall,oswaldo@pagerduty.com,amanda@pagerduty.com
+db-admin-oncall,dba-lead@company.com,oswaldo@pagerduty.com
