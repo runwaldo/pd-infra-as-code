@@ -1,0 +1,18 @@
+# Local variable files (Contains your PagerDuty Token)
+*.tfvars
+*.tfvars.json
+
+# Terraform state files (Contains PagerDuty IDs and sensitive metadata)
+*.tfstate
+*.tfstate.*
+
+# Crash logs
+crash.log
+crash.*.log
+
+# Terraform provider plugins and modules
+.terraform/
+.terraform.lock.hcl
+
+# OS generated files
+.DS_Store

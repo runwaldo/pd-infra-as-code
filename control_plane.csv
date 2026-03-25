@@ -1,0 +1,4 @@
+service_name,ep_name,team_name,user_email,team_role
+Billing Service,Backend EP,Backend API,jane.doe@example.com,responder
+Billing Service,Backend EP,Backend API,john.smith@example.com,manager
+Web Frontend,Frontend EP,UI Team,alice.dev@example.com,responder
