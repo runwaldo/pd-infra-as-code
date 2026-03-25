@@ -1,4 +1,0 @@
-name,description,escalation_policy,slack_channel
-payments-api,Core payment processing,tier-1-oncall,C01ABC123
-auth-gateway,User authentication edge,tier-1-oncall,C05DEF456
-database-cluster,RDS Primary instances,db-admin-oncall,C09GHI789
