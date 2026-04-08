@@ -8,7 +8,7 @@ terraform {
 }
 
 provider "pagerduty" {
-  token = var.pagerduty_token
+  oauth_token = var.pagerduty_oauth_token
 }
 
 # ==========================================
