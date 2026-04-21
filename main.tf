@@ -19,10 +19,8 @@ locals {
 
   teams = toset(distinct([for row in local.raw_data : row.team_name]))
   
-  # REFACORTED: The tag is now logically mapped to the Escalation Policy
   eps = { 
-    for ep in distinct([for row in local.raw_data : row.ep_name]) : ep => 
-    {
+    for ep in distinct([for row in local.raw_data : row.ep_name]) : ep => {
       name  = ep
       team  = [for row in local.raw_data : row.team_name if row.ep_name == ep][0]
       users = distinct([for row in local.raw_data : row.user_email if row.ep_name == ep])
@@ -31,8 +29,7 @@ locals {
   }
 
   services = { 
-    for obj in distinct([for row in local.raw_data : { name = row.service_name, ep = row.ep_name }]) : 
-    obj.name => obj 
+    for obj in distinct([for row in local.raw_data : { name = row.service_name, ep = row.ep_name }]) : obj.name => obj 
   }
 
   memberships = { 
@@ -46,6 +43,14 @@ locals {
   emails = toset([for row in local.raw_data : row.user_email])
 
   tags = toset(distinct([for row in local.raw_data : row.ep_tag]))
+
+  # FIXED: Deduplicate schedule names first to avoid "Duplicate object key" error
+  schedules = { 
+    for name in distinct([for row in local.raw_data : row.schedule_name if row.schedule_name != ""]) : name => {
+      name  = name
+      users = distinct([for r in local.raw_data : r.user_email if r.schedule_name == name])
+    }
+  }
 }
 
 # ==========================================
@@ -70,7 +75,7 @@ resource "pagerduty_escalation_policy" "eps" {
   name     = each.value.name
   teams    = [pagerduty_team.teams[each.value.team].id]
   
-  # FIX: Forces Terraform to destroy the EP before the team membership to avoid API errors
+  # GUARDRAIL: Forces destruction order to avoid API race conditions
   depends_on = [pagerduty_team_membership.memberships]
   
   rule {
@@ -101,20 +106,55 @@ resource "pagerduty_team_membership" "memberships" {
 }
 
 # ==========================================
-# 4. TAG MANAGEMENT (For Testing Ascendon Issue)
+# 4. TAG MANAGEMENT
 # ==========================================
 
-# Create the distinct tags
 resource "pagerduty_tag" "tags" {
   for_each = local.tags
   label    = each.key
 }
 
-# Assign the tags to the respective escalation policies
 resource "pagerduty_tag_assignment" "ep_tags" {
   for_each = local.eps
 
   tag_id      = pagerduty_tag.tags[each.value.tag].id
   entity_type = "escalation_policies"
   entity_id   = pagerduty_escalation_policy.eps[each.key].id
+}
+
+# ==========================================
+# 5. SCHEDULE V2 MANAGEMENT
+# ==========================================
+
+resource "pagerduty_schedulev2" "v2_schedules" {
+  for_each  = local.schedules
+  name      = each.value.name
+  
+  # FIXED: V2 API requires full IANA time zone (e.g., "Etc/UTC")
+  time_zone = "Etc/UTC" 
+  
+  # FIX: Explicitly setting the description bypasses the provider "Unknown Value" bug
+  description = "Managed by Terraform" 
+
+  rotation {
+    event {
+      name            = "Weekly Shift"
+      start_time      = "2026-06-01T09:00:00Z"
+      end_time        = "2026-06-08T09:00:00Z"
+      effective_since = "2026-06-01T09:00:00Z"
+      recurrence      = ["RRULE:FREQ=WEEKLY;BYDAY=MO"]
+
+      assignment_strategy {
+        type = "rotating_member_assignment_strategy"
+
+        dynamic "member" {
+          for_each = each.value.users
+          content {
+            type    = "user_member"
+            user_id = data.pagerduty_user.lookup[member.value].id
+          }
+        }
+      }
+    }
+  }
 }

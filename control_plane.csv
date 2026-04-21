@@ -1,4 +1,4 @@
-service_name,ep_name,team_name,user_email,team_role,ep_tag
-Billing Service,Backend EP,Backend API,jane.doe@example.com,responder,backend-prod
-Billing Service,Backend EP,Backend API,john.smith@example.com,manager,backend-prod
-Web Frontend,Frontend EP,UI Team,alice.dev@example.com,responder,backend-prod
+service_name,ep_name,team_name,user_email,team_role,ep_tag,schedule_name
+Billing Service,Backend EP,Backend API,jane.doe@example.com,responder,backend-prod,Ascendon ARM Deployment Engineering Schedule
+Billing Service,Backend EP,Backend API,john.smith@example.com,manager,backend-prod,Ascendon ARM Deployment Engineering Schedule
+Web Frontend,Frontend EP,UI Team,alice.dev@example.com,responder,backend-prod,
