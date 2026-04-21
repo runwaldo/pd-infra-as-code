@@ -19,12 +19,14 @@ locals {
 
   teams = toset(distinct([for row in local.raw_data : row.team_name]))
   
-  # UPDATED: We now group all user emails that belong to the same EP
+  # REFACORTED: The tag is now logically mapped to the Escalation Policy
   eps = { 
-    for ep in distinct([for row in local.raw_data : row.ep_name]) : ep => {
+    for ep in distinct([for row in local.raw_data : row.ep_name]) : ep => 
+    {
       name  = ep
       team  = [for row in local.raw_data : row.team_name if row.ep_name == ep][0]
       users = distinct([for row in local.raw_data : row.user_email if row.ep_name == ep])
+      tag   = [for row in local.raw_data : row.ep_tag if row.ep_name == ep][0]
     }
   }
 
@@ -42,6 +44,8 @@ locals {
   }
 
   emails = toset([for row in local.raw_data : row.user_email])
+
+  tags = toset(distinct([for row in local.raw_data : row.ep_tag]))
 }
 
 # ==========================================
@@ -61,11 +65,13 @@ resource "pagerduty_team" "teams" {
   name     = each.key
 }
 
-# UPDATED: Uses a dynamic block to target the specific users 
 resource "pagerduty_escalation_policy" "eps" {
   for_each = local.eps
   name     = each.value.name
   teams    = [pagerduty_team.teams[each.value.team].id]
+  
+  # FIX: Forces Terraform to destroy the EP before the team membership to avoid API errors
+  depends_on = [pagerduty_team_membership.memberships]
   
   rule {
     escalation_delay_in_minutes = 10
@@ -92,4 +98,23 @@ resource "pagerduty_team_membership" "memberships" {
   user_id = data.pagerduty_user.lookup[each.value.email].id
   team_id = pagerduty_team.teams[each.value.team].id
   role    = each.value.role
+}
+
+# ==========================================
+# 4. TAG MANAGEMENT (For Testing Ascendon Issue)
+# ==========================================
+
+# Create the distinct tags
+resource "pagerduty_tag" "tags" {
+  for_each = local.tags
+  label    = each.key
+}
+
+# Assign the tags to the respective escalation policies
+resource "pagerduty_tag_assignment" "ep_tags" {
+  for_each = local.eps
+
+  tag_id      = pagerduty_tag.tags[each.value.tag].id
+  entity_type = "escalation_policies"
+  entity_id   = pagerduty_escalation_policy.eps[each.key].id
 }
